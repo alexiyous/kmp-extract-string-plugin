@@ -44,6 +44,12 @@ class ExtractKmpStringIntention : IntentionAction {
             ?: return
 
         val rawValue = stringExpr.entries.firstOrNull()?.text ?: return
+        val xmlSafeValue = rawValue
+            .replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+            .replace("\"", "&quot;")
+            .replace("'", "&apos;")
 
         val detector = ProjectTypeDetector()
         val detection = detector.detect(file)
@@ -66,20 +72,20 @@ class ExtractKmpStringIntention : IntentionAction {
             val existingValue = writer.findEntry(detection.stringsFile, keyName)
             when {
                 existingValue == null -> {
-                    writer.writeEntry(project, detection.stringsFile, keyName, rawValue)
+                    writer.writeEntry(project, detection.stringsFile, keyName, xmlSafeValue)
                     replaceInFile(project, file, stringExpr, keyName, detection.type)
                     return
                 }
-                existingValue == rawValue -> {
+                existingValue == xmlSafeValue -> {
                     replaceInFile(project, file, stringExpr, keyName, detection.type)
                     return
                 }
                 else -> {
-                    val diffDialog = DiffPreviewDialog(project, keyName, existingValue, rawValue)
+                    val diffDialog = DiffPreviewDialog(project, keyName, existingValue, xmlSafeValue)
                     diffDialog.show()
                     when (diffDialog.result) {
                         DiffDialogResult.USE_NEW -> {
-                            writer.writeEntry(project, detection.stringsFile, keyName, rawValue)
+                            writer.writeEntry(project, detection.stringsFile, keyName, xmlSafeValue)
                             replaceInFile(project, file, stringExpr, keyName, detection.type)
                             return
                         }
@@ -146,7 +152,16 @@ class ExtractKmpStringIntention : IntentionAction {
         if (!exists) {
             val factory = KtPsiFactory(file.project)
             val directive = factory.createImportDirective(ImportPath(FqName(importFqn), false))
-            ktFile.importList?.add(directive)
+            val importList = ktFile.importList
+            if (importList != null) {
+                importList.add(directive)
+            } else {
+                // No import list — add after the package directive or at the start of the file
+                val anchor = ktFile.packageDirective ?: ktFile.firstChild
+                if (anchor != null) {
+                    ktFile.addAfter(directive, anchor)
+                }
+            }
         }
     }
 }

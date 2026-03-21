@@ -25,8 +25,8 @@ class ProjectTypeDetector {
         var androidStrings: VirtualFile? = null
 
         for (root in roots) {
-            kmpStrings = kmpStrings ?: findFile(root, "composeResources/values/strings.xml")
-            androidStrings = androidStrings ?: findFile(root, "res/values/strings.xml")
+            if (kmpStrings == null) kmpStrings = findRecursive(root, "composeResources/values/strings.xml")
+            if (androidStrings == null) androidStrings = findRecursive(root, "res/values/strings.xml")
         }
 
         return when {
@@ -36,12 +36,30 @@ class ProjectTypeDetector {
         }
     }
 
-    private fun findFile(root: VirtualFile, relativePath: String): VirtualFile? {
+    private fun findRecursive(root: VirtualFile, relativePath: String): VirtualFile? {
+        // First try direct path (covers cases where root is already the source set dir)
+        val direct = findDirect(root, relativePath)
+        if (direct != null) return direct
+        // Recursively search subdirectories (max depth 6 to avoid deep traversal)
+        return searchInChildren(root, relativePath, depth = 0, maxDepth = 6)
+    }
+
+    private fun findDirect(root: VirtualFile, relativePath: String): VirtualFile? {
         var current: VirtualFile? = root
         for (segment in relativePath.split("/")) {
             current = current?.findChild(segment) ?: return null
         }
         return current
+    }
+
+    private fun searchInChildren(dir: VirtualFile, relativePath: String, depth: Int, maxDepth: Int): VirtualFile? {
+        if (depth > maxDepth) return null
+        for (child in dir.children) {
+            if (!child.isDirectory) continue
+            val found = findDirect(child, relativePath) ?: searchInChildren(child, relativePath, depth + 1, maxDepth)
+            if (found != null) return found
+        }
+        return null
     }
 
     private fun unknown() = DetectionResult(ProjectType.UNKNOWN, null, null)
