@@ -2,6 +2,7 @@ package com.alexius.extractstring.writer
 
 import com.intellij.openapi.application.WriteAction
 import com.intellij.openapi.command.WriteCommandAction
+import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiManager
@@ -9,9 +10,17 @@ import com.intellij.psi.xml.XmlFile
 
 class StringResourceWriter {
 
+    /**
+     * Reads the current content of [file], preferring the in-memory Document
+     * (which includes unsaved edits) over the on-disk VFS bytes.
+     */
+    private fun currentContent(file: VirtualFile): String =
+        FileDocumentManager.getInstance().getDocument(file)?.text
+            ?: String(file.contentsToByteArray())
+
     /** Returns the existing value for [key], or null if not found. */
     fun findEntry(stringsFile: VirtualFile, key: String): String? {
-        val content = String(stringsFile.contentsToByteArray())
+        val content = currentContent(stringsFile)
         val regex = Regex("""<string\s+name="${Regex.escape(key)}"\s*>(.*?)</string>""", RegexOption.DOT_MATCHES_ALL)
         return regex.find(content)?.groupValues?.get(1)?.trim()
     }
@@ -43,7 +52,7 @@ class StringResourceWriter {
 
     private fun writeRaw(stringsFile: VirtualFile, key: String, value: String) {
         WriteAction.run<Exception> {
-            val current = String(stringsFile.contentsToByteArray())
+            val current = currentContent(stringsFile)
             val entry = """    <string name="$key">$value</string>"""
             val updated = if (current.contains("</resources>")) {
                 current.replace("</resources>", "$entry\n</resources>")
