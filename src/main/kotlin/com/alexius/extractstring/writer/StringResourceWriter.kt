@@ -12,7 +12,7 @@ class StringResourceWriter {
     /** Returns the existing value for [key], or null if not found. */
     fun findEntry(stringsFile: VirtualFile, key: String): String? {
         val content = String(stringsFile.contentsToByteArray())
-        val regex = Regex("""<string\s+name="$key"\s*>(.*?)</string>""", RegexOption.DOT_MATCHES_ALL)
+        val regex = Regex("""<string\s+name="${Regex.escape(key)}"\s*>(.*?)</string>""", RegexOption.DOT_MATCHES_ALL)
         return regex.find(content)?.groupValues?.get(1)?.trim()
     }
 
@@ -48,7 +48,7 @@ class StringResourceWriter {
             val updated = if (current.contains("</resources>")) {
                 current.replace("</resources>", "$entry\n</resources>")
             } else {
-                "<resources>\n$entry\n</resources>"
+                throw IllegalStateException("strings.xml at ${stringsFile.path} has no </resources> closing tag — cannot write entry.")
             }
             stringsFile.setBinaryContent(updated.toByteArray())
         }
