@@ -7,11 +7,11 @@ An Android Studio plugin that extracts hardcoded string literals into `strings.x
 ## Features
 
 - **Alt+Enter intention action** — appears on any plain string literal in `.kt` files (Mac: `Option+Enter`)
-- **KMP support** — writes to `composeResources/values/strings.xml` and replaces with `stringResource(Res.string.key)`
-- **Android support** — writes to `res/values/strings.xml` and replaces with `stringResource(R.string.key)` or `getString(R.string.key)` depending on context
+- **KMP support** — writes to `composeResources/values/strings.xml`; replaces with `stringResource(Res.string.key)` inside Composables, or `Res.string.key` outside (ViewModels, repositories, etc.)
+- **Android support** — writes to `res/values/strings.xml`; replaces with `stringResource(R.string.key)` inside Composables, or `R.string.key` outside
 - **Auto-detects project type** — scans the module's source sets; prefers KMP if both are present
 - **Auto-imports** — adds `stringResource` import and (for KMP) auto-detects and imports your generated `Res` class
-- **Composable-aware** — detects whether the string is inside a `@Composable` function to choose the correct API
+- **Composable-aware** — outside Compose it returns the raw resource reference, leaving you free to resolve it however fits your architecture (`getString`, suspend `getString`, pass to UI layer, etc.)
 - **Prompts for key name** — pre-fills with a `snake_case` suggestion derived from the string value
 - **Conflict detection with diff preview** — if the key already exists with a different value, shows a diff dialog before overwriting
 - **XML-safe** — automatically escapes `&`, `<`, `>`, `"`, `'` when writing to `strings.xml`
@@ -57,16 +57,31 @@ The output `.zip` will be at `build/distributions/`.
    <img width="738" height="335" alt="image" src="https://github.com/user-attachments/assets/b36d396a-3268-4814-a95c-25313a3c15f4" />
 
 5. The plugin writes to `strings.xml` and replaces the literal:
+
+   **Inside a `@Composable`:**
    ```kotlin
    // Before
    Text("Pick Location")
 
-   // After (KMP)
+   // After — KMP
    Text(stringResource(Res.string.pick_location))
 
-   // After (Android)
+   // After — Android
    Text(stringResource(R.string.pick_location))
    ```
+
+   **Outside a `@Composable`** (ViewModel, repository, etc.):
+   ```kotlin
+   // Before
+   val error = "Pick Location"
+
+   // After — KMP (StringResource reference, resolve as needed)
+   val error = Res.string.pick_location
+
+   // After — Android
+   val error = R.string.pick_location
+   ```
+
    Imports are added automatically.
 
 ### Conflict handling
