@@ -131,7 +131,7 @@ class ExtractKmpStringIntention : IntentionAction {
             projectType == ProjectType.KMP && isComposable -> "stringResource(Res.string.$key)"
             projectType == ProjectType.KMP -> "Res.string.$key"
             isComposable -> "stringResource(R.string.$key)"
-            else -> "getString(R.string.$key)"
+            else -> "R.string.$key"
         }
 
     private fun buildImport(projectType: ProjectType, isComposable: Boolean): String? =
@@ -139,7 +139,7 @@ class ExtractKmpStringIntention : IntentionAction {
             projectType == ProjectType.KMP && isComposable -> "org.jetbrains.compose.resources.stringResource"
             projectType == ProjectType.KMP -> null  // only Res import needed, handled by findResClassFqn
             isComposable -> "androidx.compose.ui.res.stringResource"
-            else -> null
+            else -> null  // R is auto-imported in Android projects
         }
 
     private fun isInsideComposable(element: PsiElement): Boolean {
