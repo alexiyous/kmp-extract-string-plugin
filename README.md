@@ -116,5 +116,5 @@ If both exist in the same module (common in KMP projects with `androidMain`), KM
 ---
 
 ## License
-
+MIT License - see [LICENSE](https://github.com/alexiyous/kmp-extract-string-plugin/blob/master/LICENSE) for details.
 
