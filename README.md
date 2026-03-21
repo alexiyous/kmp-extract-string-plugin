@@ -54,7 +54,7 @@ The output `.zip` will be at `build/distributions/`.
 
 4. Enter a key name in the dialog (pre-filled as `pick_location`):
 
-   ![Key name dialog](docs/dialog-key.png)
+   <img width="738" height="335" alt="image" src="https://github.com/user-attachments/assets/b36d396a-3268-4814-a95c-25313a3c15f4" />
 
 5. The plugin writes to `strings.xml` and replaces the literal:
    ```kotlin
@@ -72,14 +72,8 @@ The output `.zip` will be at `build/distributions/`.
 ### Conflict handling
 
 If the key already exists in `strings.xml` with a **different value**, a diff preview dialog appears:
+<img width="743" height="471" alt="image" src="https://github.com/user-attachments/assets/90b58076-b49c-4e1c-8820-ee980f4a096d" />
 
-```
-Key "pick_location" already exists:
-  Existing: "Pick City"
-  New:      "Pick Location"
-
-[ Use new value ]  [ Choose different key ]  [ Cancel ]
-```
 
 ---
 
