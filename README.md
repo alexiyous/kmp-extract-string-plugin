@@ -44,7 +44,7 @@ The output `.zip` will be at `build/distributions/`.
 
 1. Place your cursor inside any hardcoded string literal in a `.kt` file:
    ```kotlin
-   Text("Pilih Lokasi")
+   Text("Pick Location")
    //    ^cursor here
    ```
 
@@ -52,20 +52,20 @@ The output `.zip` will be at `build/distributions/`.
 
 3. Select **"Extract to string resource (KMP/Android)"** from the intention menu
 
-4. Enter a key name in the dialog (pre-filled as `pilih_lokasi`):
+4. Enter a key name in the dialog (pre-filled as `pick_location`):
 
    ![Key name dialog](docs/dialog-key.png)
 
 5. The plugin writes to `strings.xml` and replaces the literal:
    ```kotlin
    // Before
-   Text("Pilih Lokasi")
+   Text("Pick Location")
 
    // After (KMP)
-   Text(stringResource(Res.string.pilih_lokasi))
+   Text(stringResource(Res.string.pick_location))
 
    // After (Android)
-   Text(stringResource(R.string.pilih_lokasi))
+   Text(stringResource(R.string.pick_location))
    ```
    Imports are added automatically.
 
@@ -74,9 +74,9 @@ The output `.zip` will be at `build/distributions/`.
 If the key already exists in `strings.xml` with a **different value**, a diff preview dialog appears:
 
 ```
-Key "pilih_lokasi" already exists:
-  Existing: "Pilih Kota"
-  New:      "Pilih Lokasi"
+Key "pick_location" already exists:
+  Existing: "Pick City"
+  New:      "Pick Location"
 
 [ Use new value ]  [ Choose different key ]  [ Cancel ]
 ```
@@ -108,4 +108,4 @@ If both exist in the same module (common in KMP projects with `androidMain`), KM
 
 ## License
 
-MIT
+
