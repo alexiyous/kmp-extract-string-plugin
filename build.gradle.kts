@@ -1,3 +1,5 @@
+import org.jetbrains.intellij.platform.gradle.TestFrameworkType
+
 plugins {
     id("org.jetbrains.kotlin.jvm") version "2.1.0"
     id("org.jetbrains.intellij.platform") version "2.3.0"
@@ -21,7 +23,7 @@ dependencies {
     intellijPlatform {
         androidStudio("2024.2.1.11") // Ladybug
         bundledPlugin("org.jetbrains.kotlin")
-        instrumentationTools()
+        testFramework(TestFrameworkType.Platform)
     }
     testImplementation("junit:junit:4.13.2")
 }
