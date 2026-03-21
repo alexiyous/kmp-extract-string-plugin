@@ -1,0 +1,111 @@
+# KMP Extract String Resource
+
+An Android Studio plugin that extracts hardcoded string literals into `strings.xml` with a single `Alt+Enter` — with full support for **Kotlin Multiplatform (KMP)** projects using Compose Resources and regular **Android** projects.
+
+---
+
+## Features
+
+- **Alt+Enter intention action** — appears on any plain string literal in `.kt` files (Mac: `Option+Enter`)
+- **KMP support** — writes to `composeResources/values/strings.xml` and replaces with `stringResource(Res.string.key)`
+- **Android support** — writes to `res/values/strings.xml` and replaces with `stringResource(R.string.key)` or `getString(R.string.key)` depending on context
+- **Auto-detects project type** — scans the module's source sets; prefers KMP if both are present
+- **Auto-imports** — adds `stringResource` import and (for KMP) auto-detects and imports your generated `Res` class
+- **Composable-aware** — detects whether the string is inside a `@Composable` function to choose the correct API
+- **Prompts for key name** — pre-fills with a `snake_case` suggestion derived from the string value
+- **Conflict detection with diff preview** — if the key already exists with a different value, shows a diff dialog before overwriting
+- **XML-safe** — automatically escapes `&`, `<`, `>`, `"`, `'` when writing to `strings.xml`
+
+---
+
+## Installation
+
+### From disk (manual)
+
+1. Download the latest `.zip` from the [Releases](https://github.com/alexiyous/kmp-extract-string-plugin/releases) page
+2. Open Android Studio → **Settings** → **Plugins**
+3. Click the **⚙️** gear icon → **Install Plugin from Disk...**
+4. Select the downloaded `.zip` file
+5. Restart Android Studio
+
+### Build from source
+
+```bash
+git clone https://github.com/alexiyous/kmp-extract-string-plugin.git
+cd kmp-extract-string-plugin
+./gradlew buildPlugin
+```
+
+The output `.zip` will be at `build/distributions/`.
+
+---
+
+## Usage
+
+1. Place your cursor inside any hardcoded string literal in a `.kt` file:
+   ```kotlin
+   Text("Pilih Lokasi")
+   //    ^cursor here
+   ```
+
+2. Press `Alt+Enter` (Windows/Linux) or `Option+Enter` (Mac)
+
+3. Select **"Extract to string resource (KMP/Android)"** from the intention menu
+
+4. Enter a key name in the dialog (pre-filled as `pilih_lokasi`):
+
+   ![Key name dialog](docs/dialog-key.png)
+
+5. The plugin writes to `strings.xml` and replaces the literal:
+   ```kotlin
+   // Before
+   Text("Pilih Lokasi")
+
+   // After (KMP)
+   Text(stringResource(Res.string.pilih_lokasi))
+
+   // After (Android)
+   Text(stringResource(R.string.pilih_lokasi))
+   ```
+   Imports are added automatically.
+
+### Conflict handling
+
+If the key already exists in `strings.xml` with a **different value**, a diff preview dialog appears:
+
+```
+Key "pilih_lokasi" already exists:
+  Existing: "Pilih Kota"
+  New:      "Pilih Lokasi"
+
+[ Use new value ]  [ Choose different key ]  [ Cancel ]
+```
+
+---
+
+## Compatibility
+
+| Item | Value |
+|---|---|
+| Android Studio | Hedgehog (2023.1) and later |
+| Kotlin Plugin | K1 and K2 mode |
+| Build range | 243+ (no upper bound) |
+
+---
+
+## Project type detection
+
+The plugin scans the module's content roots for:
+
+| Path | Detected as |
+|---|---|
+| `composeResources/values/strings.xml` | KMP |
+| `res/values/strings.xml` | Android |
+
+If both exist in the same module (common in KMP projects with `androidMain`), KMP takes priority.
+
+---
+
+## License
+
+MIT
