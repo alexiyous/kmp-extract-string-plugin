@@ -12,9 +12,8 @@
     <depends>com.intellij.modules.platform</depends>
     <depends>org.jetbrains.kotlin</depends>
 
-    <extensions defaultExtensionPoint="com.intellij">
+    <extensions defaultExtensionNs="com.intellij">
         <intentionAction>
-            <language>kotlin</language>
             <className>com.alexius.extractstring.intention.ExtractKmpStringIntention</className>
             <category>Kotlin</category>
         </intentionAction>

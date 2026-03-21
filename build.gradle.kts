@@ -32,7 +32,7 @@ intellijPlatform {
         name = "KMP Extract String Resource"
         version = "1.0.0"
         ideaVersion {
-            sinceBuild = "233"
+            sinceBuild = "243"
             untilBuild = "251.*"
         }
     }
