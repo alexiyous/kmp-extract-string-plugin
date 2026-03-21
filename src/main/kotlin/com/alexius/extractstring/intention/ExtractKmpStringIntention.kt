@@ -17,6 +17,7 @@ import com.intellij.psi.util.PsiTreeUtil
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.resolve.ImportPath
+import org.jetbrains.kotlin.psi.KtLiteralStringTemplateEntry
 import org.jetbrains.kotlin.psi.KtNamedFunction
 import org.jetbrains.kotlin.psi.KtPsiFactory
 import org.jetbrains.kotlin.psi.KtStringTemplateExpression
@@ -34,8 +35,7 @@ class ExtractKmpStringIntention : IntentionAction {
             ?: return false
         // Only plain strings — no ${} interpolations
         if (stringExpr.entries.size != 1) return false
-        val entryClass = stringExpr.entries[0].javaClass.simpleName
-        return entryClass == "KtLiteralStringTemplateEntry"
+        return stringExpr.entries[0] is KtLiteralStringTemplateEntry
     }
 
     override fun invoke(project: Project, editor: Editor, file: PsiFile) {
