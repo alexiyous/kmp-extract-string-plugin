@@ -13,6 +13,9 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
+import com.intellij.psi.PsiManager
+import com.intellij.psi.search.FilenameIndex
+import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.psi.util.PsiTreeUtil
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.psi.KtFile
@@ -113,11 +116,13 @@ class ExtractKmpStringIntention : IntentionAction {
     ) {
         val isComposable = isInsideComposable(stringExpr)
         val replacement = buildReplacement(key, projectType, isComposable)
-        val importFqn = buildImport(projectType, isComposable)
+        val stringResourceImport = buildImport(projectType, isComposable)
+        val resImport = if (projectType == ProjectType.KMP) findResClassFqn(project) else null
 
         WriteCommandAction.runWriteCommandAction(project, "Extract String Resource", null, {
             stringExpr.replace(KtPsiFactory(project).createExpression(replacement))
-            if (importFqn != null) addImportIfMissing(file, importFqn)
+            if (stringResourceImport != null) addImportIfMissing(file, stringResourceImport)
+            if (resImport != null) addImportIfMissing(file, resImport)
         })
     }
 
@@ -144,6 +149,24 @@ class ExtractKmpStringIntention : IntentionAction {
             current = current.parent
         }
         return false
+    }
+
+    /**
+     * Scans all .kt files in the project for an existing import matching
+     * "*.generated.resources.Res" and returns its FQN.
+     * This works for any KMP module regardless of its package name.
+     */
+    private fun findResClassFqn(project: Project): String? {
+        val scope = GlobalSearchScope.projectScope(project)
+        val ktFiles = FilenameIndex.getAllFilesByExt(project, "kt", scope)
+        for (vFile in ktFiles) {
+            val psiFile = PsiManager.getInstance(project).findFile(vFile) as? KtFile ?: continue
+            val match = psiFile.importDirectives
+                .mapNotNull { it.importedFqName?.asString() }
+                .firstOrNull { it.endsWith(".generated.resources.Res") }
+            if (match != null) return match
+        }
+        return null
     }
 
     private fun addImportIfMissing(file: PsiFile, importFqn: String) {
