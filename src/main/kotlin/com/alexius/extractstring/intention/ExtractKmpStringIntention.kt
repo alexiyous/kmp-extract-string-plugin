@@ -128,14 +128,16 @@ class ExtractKmpStringIntention : IntentionAction {
 
     private fun buildReplacement(key: String, projectType: ProjectType, isComposable: Boolean): String =
         when {
-            projectType == ProjectType.KMP -> "stringResource(Res.string.$key)"
+            projectType == ProjectType.KMP && isComposable -> "stringResource(Res.string.$key)"
+            projectType == ProjectType.KMP -> "Res.string.$key"
             isComposable -> "stringResource(R.string.$key)"
             else -> "getString(R.string.$key)"
         }
 
     private fun buildImport(projectType: ProjectType, isComposable: Boolean): String? =
         when {
-            projectType == ProjectType.KMP -> "org.jetbrains.compose.resources.stringResource"
+            projectType == ProjectType.KMP && isComposable -> "org.jetbrains.compose.resources.stringResource"
+            projectType == ProjectType.KMP -> null  // only Res import needed, handled by findResClassFqn
             isComposable -> "androidx.compose.ui.res.stringResource"
             else -> null
         }
