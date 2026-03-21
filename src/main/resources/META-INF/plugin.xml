@@ -1,0 +1,22 @@
+<idea-plugin>
+    <id>com.alexius.extract-string</id>
+    <name>KMP Extract String Resource</name>
+    <vendor url="https://github.com/alexius">alexius</vendor>
+    <description><![CDATA[
+        Extract hardcoded string literals to the correct strings.xml.
+        Supports KMP (composeResources/values/strings.xml + Res.string.key)
+        and regular Android (res/values/strings.xml + R.string.key).
+        Triggered via Alt+Enter / Option+Enter on any string literal in Kotlin files.
+    ]]></description>
+
+    <depends>com.intellij.modules.platform</depends>
+    <depends>org.jetbrains.kotlin</depends>
+
+    <extensions defaultExtensionPoint="com.intellij">
+        <intentionAction>
+            <language>kotlin</language>
+            <className>com.alexius.extractstring.intention.ExtractKmpStringIntention</className>
+            <category>Kotlin</category>
+        </intentionAction>
+    </extensions>
+</idea-plugin>
