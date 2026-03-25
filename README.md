@@ -4,6 +4,9 @@ An Android Studio plugin that extracts hardcoded string literals into `strings.x
 
 ---
 
+## Demo
+https://github.com/user-attachments/assets/091fcb01-9b57-4384-8d68-b7d333b0d25b
+
 ## Features
 
 - **Alt+Enter intention action** — appears on any plain string literal in `.kt` files (Mac: `Option+Enter`)
