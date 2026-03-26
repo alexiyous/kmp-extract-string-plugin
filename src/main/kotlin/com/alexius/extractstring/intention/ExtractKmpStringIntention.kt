@@ -5,6 +5,9 @@ import com.alexius.extractstring.detector.ProjectTypeDetector
 import com.alexius.extractstring.dialog.DiffDialogResult
 import com.alexius.extractstring.dialog.DiffPreviewDialog
 import com.alexius.extractstring.dialog.ExtractStringDialog
+import com.alexius.extractstring.analyzer.StringAnalysis
+import com.alexius.extractstring.analyzer.StringTemplateAnalyzer
+import com.alexius.extractstring.analyzer.TemplateArg
 import com.alexius.extractstring.writer.StringResourceWriter
 import com.intellij.codeInsight.intention.IntentionAction
 import com.intellij.openapi.command.WriteCommandAction
@@ -20,7 +23,6 @@ import com.intellij.psi.util.PsiTreeUtil
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.resolve.ImportPath
-import org.jetbrains.kotlin.psi.KtLiteralStringTemplateEntry
 import org.jetbrains.kotlin.psi.KtNamedFunction
 import org.jetbrains.kotlin.psi.KtPsiFactory
 import org.jetbrains.kotlin.psi.KtStringTemplateExpression
@@ -36,9 +38,7 @@ class ExtractKmpStringIntention : IntentionAction {
         val element = file.findElementAt(editor.caretModel.offset) ?: return false
         val stringExpr = PsiTreeUtil.getParentOfType(element, KtStringTemplateExpression::class.java)
             ?: return false
-        // Only plain strings — no ${} interpolations
-        if (stringExpr.entries.size != 1) return false
-        return stringExpr.entries[0] is KtLiteralStringTemplateEntry
+        return stringExpr.entries.isNotEmpty()
     }
 
     override fun invoke(project: Project, editor: Editor, file: PsiFile) {
@@ -46,14 +46,45 @@ class ExtractKmpStringIntention : IntentionAction {
         val stringExpr = PsiTreeUtil.getParentOfType(element, KtStringTemplateExpression::class.java)
             ?: return
 
-        val rawValue = stringExpr.entries.firstOrNull()?.text ?: return
-        val xmlSafeValue = rawValue
-            .replace("&", "&amp;")
-            .replace("<", "&lt;")
-            .replace(">", "&gt;")
-            .replace("\"", "&quot;")
-            .replace("'", "&apos;")
+        val analyzer = StringTemplateAnalyzer()
+        when (val analysis = analyzer.analyze(stringExpr)) {
+            is StringAnalysis.UnsupportedArgs -> {
+                val lines = analysis.offenders.joinToString("\n") { arg ->
+                    "  • ${arg.expressionText} → ${arg.typeName ?: "unresolved"}"
+                }
+                Messages.showErrorDialog(
+                    project,
+                    "Cannot extract — unsupported argument types:\n$lines\n\nOnly Int, Long, Short, Byte, Float, Double, Char, and String are supported.",
+                    "Extract String Resource"
+                )
+                return
+            }
+            is StringAnalysis.PlainString -> invokeExtraction(
+                project, file, stringExpr,
+                rawValue = analysis.rawValue,
+                xmlSafeValue = analysis.xmlSafeValue,
+                formatPreview = null,
+                args = emptyList()
+            )
+            is StringAnalysis.ParameterizedString -> invokeExtraction(
+                project, file, stringExpr,
+                rawValue = stringExpr.text,
+                xmlSafeValue = analysis.formatString,
+                formatPreview = analysis.formatString,
+                args = analysis.arguments
+            )
+        }
+    }
 
+    private fun invokeExtraction(
+        project: Project,
+        file: PsiFile,
+        stringExpr: KtStringTemplateExpression,
+        rawValue: String,
+        xmlSafeValue: String,
+        formatPreview: String?,
+        args: List<TemplateArg>
+    ) {
         val detector = ProjectTypeDetector()
         val detection = detector.detect(file)
 
@@ -68,7 +99,7 @@ class ExtractKmpStringIntention : IntentionAction {
         }
 
         val writer = StringResourceWriter()
-        var keyName = promptForKey(project, rawValue, ProjectTypeDetector.toSnakeCase(rawValue))
+        var keyName = promptForKey(project, rawValue, ProjectTypeDetector.toSnakeCase(rawValue), formatPreview)
             ?: return
 
         while (true) {
@@ -76,11 +107,11 @@ class ExtractKmpStringIntention : IntentionAction {
             when {
                 existingValue == null -> {
                     writer.writeEntry(project, detection.stringsFile, keyName, xmlSafeValue)
-                    replaceInFile(project, file, stringExpr, keyName, detection.type)
+                    replaceInFile(project, file, stringExpr, keyName, detection.type, args)
                     return
                 }
                 existingValue == xmlSafeValue -> {
-                    replaceInFile(project, file, stringExpr, keyName, detection.type)
+                    replaceInFile(project, file, stringExpr, keyName, detection.type, args)
                     return
                 }
                 else -> {
@@ -89,11 +120,11 @@ class ExtractKmpStringIntention : IntentionAction {
                     when (diffDialog.result) {
                         DiffDialogResult.USE_NEW -> {
                             writer.writeEntry(project, detection.stringsFile, keyName, xmlSafeValue)
-                            replaceInFile(project, file, stringExpr, keyName, detection.type)
+                            replaceInFile(project, file, stringExpr, keyName, detection.type, args)
                             return
                         }
                         DiffDialogResult.CHOOSE_DIFFERENT_KEY -> {
-                            keyName = promptForKey(project, rawValue, keyName) ?: return
+                            keyName = promptForKey(project, rawValue, keyName, formatPreview) ?: return
                         }
                         DiffDialogResult.CANCEL -> return
                     }
@@ -102,8 +133,13 @@ class ExtractKmpStringIntention : IntentionAction {
         }
     }
 
-    private fun promptForKey(project: Project, rawValue: String, initialKey: String): String? {
-        val dialog = ExtractStringDialog(project, rawValue, initialKey)
+    private fun promptForKey(
+        project: Project,
+        rawValue: String,
+        initialKey: String,
+        formatPreview: String? = null
+    ): String? {
+        val dialog = ExtractStringDialog(project, rawValue, initialKey, formatPreview)
         return if (dialog.showAndGet()) dialog.keyName else null
     }
 
@@ -112,10 +148,11 @@ class ExtractKmpStringIntention : IntentionAction {
         file: PsiFile,
         stringExpr: KtStringTemplateExpression,
         key: String,
-        projectType: ProjectType
+        projectType: ProjectType,
+        args: List<TemplateArg> = emptyList()
     ) {
         val isComposable = isInsideComposable(stringExpr)
-        val replacement = buildReplacement(key, projectType, isComposable)
+        val replacement = buildReplacement(key, projectType, isComposable, args)
         val stringResourceImport = buildImport(projectType, isComposable)
         val resImport = if (projectType == ProjectType.KMP) findResClassFqn(project) else null
 
@@ -126,13 +163,20 @@ class ExtractKmpStringIntention : IntentionAction {
         })
     }
 
-    private fun buildReplacement(key: String, projectType: ProjectType, isComposable: Boolean): String =
-        when {
-            projectType == ProjectType.KMP && isComposable -> "stringResource(Res.string.$key)"
-            projectType == ProjectType.KMP -> "Res.string.$key"
-            isComposable -> "stringResource(R.string.$key)"
-            else -> "R.string.$key"
+    private fun buildReplacement(
+        key: String,
+        projectType: ProjectType,
+        isComposable: Boolean,
+        args: List<TemplateArg> = emptyList()
+    ): String {
+        val argsSuffix = if (args.isNotEmpty()) ", ${args.joinToString(", ") { it.expressionText }}" else ""
+        return when {
+            projectType == ProjectType.KMP && isComposable -> "stringResource(Res.string.$key$argsSuffix)"
+            projectType == ProjectType.KMP                 -> "Res.string.$key"
+            isComposable                                   -> "stringResource(R.string.$key$argsSuffix)"
+            else                                           -> "R.string.$key"
         }
+    }
 
     private fun buildImport(projectType: ProjectType, isComposable: Boolean): String? =
         when {
