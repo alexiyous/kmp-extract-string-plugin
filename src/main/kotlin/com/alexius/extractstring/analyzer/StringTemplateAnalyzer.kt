@@ -1,9 +1,15 @@
 package com.alexius.extractstring.analyzer
 
+import com.intellij.psi.PsiElement
+import com.intellij.psi.util.PsiTreeUtil
 import org.jetbrains.kotlin.analysis.api.analyze
+import org.jetbrains.kotlin.psi.KtBlockExpression
 import org.jetbrains.kotlin.psi.KtBlockStringTemplateEntry
+import org.jetbrains.kotlin.psi.KtClassBody
 import org.jetbrains.kotlin.psi.KtExpression
+import org.jetbrains.kotlin.psi.KtFunction
 import org.jetbrains.kotlin.psi.KtLiteralStringTemplateEntry
+import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtSimpleNameStringTemplateEntry
 import org.jetbrains.kotlin.psi.KtStringTemplateExpression
 
@@ -72,18 +78,67 @@ class StringTemplateAnalyzer {
     }
 
     private fun resolveTypeName(expression: KtExpression): String? =
+        tryAnalysisApi(expression) ?: tryPsiInspection(expression)
+
+    /**
+     * Primary resolution via K2 Analysis API.
+     * Uses classId FQN (stable across IDE versions) instead of KaType.toString() (debug format, not stable).
+     */
+    private fun tryAnalysisApi(expression: KtExpression): String? =
         try {
             analyze(expression) {
-                expression.expressionType?.let { type ->
-                    type.toString()
-                        .removePrefix("kotlin.")
-                        .substringBefore("?")
-                        .substringAfterLast(".")
-                }
+                expression.expressionType
+                    ?.expandedSymbol
+                    ?.classId
+                    ?.asFqNameString()
+                    ?.removePrefix("kotlin.")
+                    ?.substringAfterLast(".")
+                    ?.takeIf { it.isNotEmpty() }
             }
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            // Never swallow ProcessCanceledException — it signals IDE cancellation
+            if (e.javaClass.name.contains("ProcessCanceled")) throw e
             null
         }
+
+    /**
+     * Fallback: inspect explicit type annotations in the PSI tree.
+     * Works for `val x: Int`, `fun f(x: Int)`, etc. without needing the Analysis API.
+     * Returns null for inferred types (no explicit annotation).
+     */
+    private fun tryPsiInspection(expression: KtExpression): String? {
+        val referencedName = expression.text.trim()
+        var current: PsiElement? = expression.parent
+        while (current != null) {
+            when (current) {
+                is KtFunction -> {
+                    val param = current.valueParameters.firstOrNull { it.name == referencedName }
+                    param?.typeReference?.text
+                        ?.substringBefore("?")?.substringAfterLast(".")?.trim()
+                        ?.takeIf { it.isNotEmpty() }
+                        ?.let { return it }
+                }
+                is KtBlockExpression -> {
+                    current.statements.filterIsInstance<KtProperty>()
+                        .firstOrNull { it.name == referencedName && it.typeReference != null }
+                        ?.typeReference?.text
+                        ?.substringBefore("?")?.substringAfterLast(".")?.trim()
+                        ?.takeIf { it.isNotEmpty() }
+                        ?.let { return it }
+                }
+                is KtClassBody -> {
+                    current.properties
+                        .firstOrNull { it.name == referencedName && it.typeReference != null }
+                        ?.typeReference?.text
+                        ?.substringBefore("?")?.substringAfterLast(".")?.trim()
+                        ?.takeIf { it.isNotEmpty() }
+                        ?.let { return it }
+                }
+            }
+            current = current.parent
+        }
+        return null
+    }
 
     /**
      * Returns the positional printf-style format specifier for a known Kotlin primitive type,
