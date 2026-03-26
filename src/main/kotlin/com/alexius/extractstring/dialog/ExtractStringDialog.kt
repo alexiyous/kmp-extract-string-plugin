@@ -12,7 +12,8 @@ import javax.swing.*
 class ExtractStringDialog(
     project: Project,
     private val stringValue: String,
-    initialKey: String
+    initialKey: String,
+    private val formatPreview: String? = null
 ) : DialogWrapper(project) {
 
     private val keyField = JTextField(initialKey, 40)
@@ -30,21 +31,32 @@ class ExtractStringDialog(
             insets = Insets(4, 4, 4, 4)
             fill = GridBagConstraints.HORIZONTAL
         }
+        var row = 0
 
-        gbc.gridx = 0; gbc.gridy = 0; gbc.gridwidth = 2
+        // String value preview
+        gbc.gridx = 0; gbc.gridy = row++; gbc.gridwidth = 2; gbc.weightx = 1.0
         panel.add(
             JLabel("String value: \"${stringValue.take(60)}${if (stringValue.length > 60) "…" else ""}\""),
             gbc
         )
 
-        gbc.gridwidth = 1
-        gbc.gridx = 0; gbc.gridy = 1; gbc.weightx = 0.0
-        panel.add(JLabel("Resource key:"), gbc)
+        // Format string preview — only shown for parameterized strings
+        if (formatPreview != null) {
+            gbc.gridy = row++
+            panel.add(
+                JLabel("Format: \"${formatPreview.take(80)}${if (formatPreview.length > 80) "…" else ""}\""),
+                gbc
+            )
+        }
 
-        gbc.gridx = 1; gbc.gridy = 1; gbc.weightx = 1.0
+        // Key name field
+        gbc.gridwidth = 1; gbc.weightx = 0.0
+        gbc.gridx = 0; gbc.gridy = row
+        panel.add(JLabel("Resource key:"), gbc)
+        gbc.gridx = 1; gbc.weightx = 1.0
         panel.add(keyField, gbc)
 
-        panel.preferredSize = Dimension(420, 80)
+        panel.preferredSize = Dimension(480, if (formatPreview != null) 110 else 80)
         return panel
     }
 
