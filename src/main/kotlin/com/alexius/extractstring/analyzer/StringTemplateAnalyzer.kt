@@ -1,7 +1,6 @@
 package com.alexius.extractstring.analyzer
 
 import com.intellij.openapi.application.ApplicationManager
-import com.intellij.openapi.diagnostic.Logger
 import com.intellij.psi.PsiElement
 import com.intellij.psi.util.PsiTreeUtil
 import java.util.concurrent.CompletableFuture
@@ -22,8 +21,6 @@ import org.jetbrains.kotlin.psi.KtStringTemplateExpression
  * how it should be extracted to a string resource.
  */
 class StringTemplateAnalyzer {
-
-    private val log = Logger.getInstance(StringTemplateAnalyzer::class.java)
 
     /**
      * Analyzes the given string template expression.
@@ -105,8 +102,6 @@ class StringTemplateAnalyzer {
                             ?.substringAfterLast(".")
                             ?.takeIf { it.isNotEmpty() }
                     }
-                }.onFailure { e ->
-                    log.warn("StringTemplateAnalyzer: Analysis API failed for '${expression.text}': ${e.javaClass.name}: ${e.message}")
                 }.getOrNull()
                 future.complete(result)
             }
