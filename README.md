@@ -20,6 +20,7 @@ https://github.com/user-attachments/assets/091fcb01-9b57-4384-8d68-b7d333b0d25b
 - **Prompts for key name** — pre-fills with a `snake_case` suggestion derived from the string value
 - **Conflict detection with diff preview** — if the key already exists with a different value, shows a diff dialog before overwriting
 - **XML-safe** — automatically escapes `&`, `<`, `>`, `"`, `'` when writing to `strings.xml`
+- **Parameterized string support** — string templates with `$variable` / `${expr}` are converted to format strings (`%1$d`, `%2$s`, etc.) with automatic type detection; unsupported types cancel the extraction with a clear warning
 
 ---
 
