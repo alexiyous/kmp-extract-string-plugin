@@ -1,7 +1,11 @@
 package com.alexius.extractstring.analyzer
 
+import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.diagnostic.Logger
 import com.intellij.psi.PsiElement
 import com.intellij.psi.util.PsiTreeUtil
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.TimeUnit
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.psi.KtBlockExpression
 import org.jetbrains.kotlin.psi.KtBlockStringTemplateEntry
@@ -18,6 +22,8 @@ import org.jetbrains.kotlin.psi.KtStringTemplateExpression
  * how it should be extracted to a string resource.
  */
 class StringTemplateAnalyzer {
+
+    private val log = Logger.getInstance(StringTemplateAnalyzer::class.java)
 
     /**
      * Analyzes the given string template expression.
@@ -82,24 +88,35 @@ class StringTemplateAnalyzer {
 
     /**
      * Primary resolution via K2 Analysis API.
-     * Uses classId FQN (stable across IDE versions) instead of KaType.toString() (debug format, not stable).
+     * Meerkat (AI-253+) prohibits calling analyze{} from the EDT, so we dispatch to a pooled
+     * thread and wait up to 1 second for the result.
      */
-    private fun tryAnalysisApi(expression: KtExpression): String? =
-        try {
-            analyze(expression) {
-                expression.expressionType
-                    ?.expandedSymbol
-                    ?.classId
-                    ?.asFqNameString()
-                    ?.removePrefix("kotlin.")
-                    ?.substringAfterLast(".")
-                    ?.takeIf { it.isNotEmpty() }
+    private fun tryAnalysisApi(expression: KtExpression): String? {
+        val future = CompletableFuture<String?>()
+        ApplicationManager.getApplication().executeOnPooledThread {
+            ApplicationManager.getApplication().runReadAction {
+                val result = runCatching {
+                    analyze(expression) {
+                        expression.expressionType
+                            ?.expandedSymbol
+                            ?.classId
+                            ?.asFqNameString()
+                            ?.removePrefix("kotlin.")
+                            ?.substringAfterLast(".")
+                            ?.takeIf { it.isNotEmpty() }
+                    }
+                }.onFailure { e ->
+                    log.warn("StringTemplateAnalyzer: Analysis API failed for '${expression.text}': ${e.javaClass.name}: ${e.message}")
+                }.getOrNull()
+                future.complete(result)
             }
-        } catch (e: Exception) {
-            // Never swallow ProcessCanceledException — it signals IDE cancellation
-            if (e.javaClass.name.contains("ProcessCanceled")) throw e
+        }
+        return try {
+            future.get(1, TimeUnit.SECONDS)
+        } catch (_: Exception) {
             null
         }
+    }
 
     /**
      * Fallback: inspect explicit type annotations in the PSI tree.
